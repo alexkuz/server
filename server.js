@@ -16,6 +16,7 @@ export default function(opt) {
     const validHosts = (opt.domain) ? [opt.domain] : undefined;
     const myTldjs = tldjs.fromUserSettings({ validHosts });
     const landingPage = opt.landing || 'https://localtunnel.github.io/www/';
+    const subdomainRegex = opt.subdomain_regex == null ? null : new RegExp(opt.subdomain_regex);
 
     function GetClientIdFromHostname(hostname) {
         return myTldjs.getSubdomain(hostname);
@@ -94,14 +95,27 @@ export default function(opt) {
 
         const reqId = parts[1];
 
-        // limit requested hostnames to 63 characters
-        if (! /^(?:[a-z0-9][a-z0-9\-]{4,63}[a-z0-9]|[a-z0-9]{4,63})$/.test(reqId)) {
-            const msg = 'Invalid subdomain. Subdomains must be lowercase and between 4 and 63 alphanumeric characters.';
-            ctx.status = 403;
-            ctx.body = {
-                message: msg,
-            };
-            return;
+        if (subdomainRegex) {
+            if (! subdomainRegex.test(reqId)) {
+                const msg = 'Invalid subdomain. "' +  reqId + '" does not match expression ' + subdomainRegex.toString();
+                debug(msg);
+                ctx.status = 403;
+                ctx.body = {
+                    message: msg,
+                };
+                return;
+            }
+        } else {
+            // limit requested hostnames to 63 characters
+            if (! /^(?:[a-z0-9][a-z0-9\-]{4,63}[a-z0-9]|[a-z0-9]{4,63})$/.test(reqId)) {
+                const msg = 'Invalid subdomain. Subdomains must be lowercase and between 4 and 63 alphanumeric characters.';
+                debug(msg);
+                ctx.status = 403;
+                ctx.body = {
+                    message: msg,
+                };
+                return;
+            }
         }
 
         debug('making new client with id %s', reqId);
